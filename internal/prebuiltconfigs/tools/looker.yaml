@@ -1107,7 +1107,6 @@ tools:
           A JSON array of objects, where each object represents a column and contains details
           such as `table_name`, `column_name`, `data_type`, and `is_nullable`.
 
-
     search_permission_sets:
         kind: looker-search-permission-sets
         source: looker-source
@@ -1119,7 +1118,6 @@ tools:
           Parameters:
           - name (optional): The name of the permission set.
           - id (optional): The unique id of the permission set.
-          - permission (optional): The permission string to filter the permision_sets by.
           - limit (optional): The number of results to return.
           - offset (optional): The number of results to skip before returning.
 

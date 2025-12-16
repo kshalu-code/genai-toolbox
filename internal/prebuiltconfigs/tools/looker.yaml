@@ -1118,6 +1118,7 @@ tools:
           Parameters:
           - name (optional): The name of the permission set.
           - id (optional): The unique id of the permission set.
+          - permission (optional): The permission string to filter the permision_sets by.
           - limit (optional): The number of results to return.
           - offset (optional): The number of results to skip before returning.
 

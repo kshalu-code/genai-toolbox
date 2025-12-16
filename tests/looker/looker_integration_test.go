@@ -234,6 +234,36 @@ func TestLooker(t *testing.T) {
 				"source":      "my-instance",
 				"description": "Simple tool to test end to end functionality.",
 			},
+			"search_model_sets": map[string]any{
+				"kind":        "looker-search-model-sets",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
+			"create_model_set": map[string]any{
+				"kind":        "looker-create-model-set",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
+			"create_permission_set": map[string]any{
+				"kind":        "looker-create-permission-set",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
+			"create_role": map[string]any{
+				"kind":        "looker-create-role",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
+			"search_roles": map[string]any{
+				"kind":        "looker-search-roles",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
+			"get_all_permissions": map[string]any{
+				"kind":        "looker-get-all-permissions",
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+			},
 		},
 	}
 
@@ -1171,6 +1201,143 @@ func TestLooker(t *testing.T) {
 		},
 	)
 
+	tests.RunToolGetTestByName(t, "create_model_set",
+		map[string]any{
+			"create_model_set": map[string]any{
+				"description":  "Simple tool to test end to end functionality.",
+				"authRequired": []any{},
+				"parameters": []any{
+					map[string]any{
+						"authSources": []any{},
+						"description": "The name of the new model set.",
+						"name":        "name",
+						"required":    true,
+						"type":        "string",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"description": "A list of model names to include in the set.",
+						"items": map[string]any{
+							"authSources": []any{},
+							"description": "A model name to include in the set",
+							"name":        "model",
+							"required":    true,
+							"type":        "string",
+						},
+						"name":     "models",
+						"required": true,
+						"type":     "array",
+					},
+				},
+			},
+		},
+	)
+
+	tests.RunToolGetTestByName(t, "create_permission_set",
+		map[string]any{
+			"create_permission_set": map[string]any{
+				"description":  "Simple tool to test end to end functionality.",
+				"authRequired": []any{},
+				"parameters": []any{
+					map[string]any{
+						"authSources": []any{},
+						"description": "The name of the new permission set.",
+						"name":        "name",
+						"required":    true,
+						"type":        "string",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"description": "A list of permission strings to include in the set.",
+						"items": map[string]any{
+							"authSources": []any{},
+							"description": "A permission string",
+							"name":        "permission",
+							"required":    true,
+							"type":        "string",
+						},
+						"name":     "permissions",
+						"required": true,
+						"type":     "array",
+					},
+				},
+			},
+		},
+	)
+
+	tests.RunToolGetTestByName(t, "create_role",
+		map[string]any{
+			"create_role": map[string]any{
+				"description":  "Simple tool to test end to end functionality.",
+				"authRequired": []any{},
+				"parameters": []any{
+					map[string]any{
+						"authSources": []any{},
+						"description": "The name of the new role.",
+						"name":        "name",
+						"required":    true,
+						"type":        "string",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"description": "The ID of the associated permission set.",
+						"name":        "permission_set_id",
+						"required":    true,
+						"type":        "string",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"description": "The ID of the associated model set.",
+						"name":        "model_set_id",
+						"required":    true,
+						"type":        "string",
+					},
+				},
+			},
+		},
+	)
+
+	tests.RunToolGetTestByName(t, "search_roles",
+		map[string]any{
+			"search_roles": map[string]any{
+				"description":  "Simple tool to test end to end functionality.",
+				"authRequired": []any{},
+				"parameters": []any{
+					map[string]any{
+						"authSources": []any{},
+						"description": "The name of the role.",
+						"name":        "name",
+						"required":    false,
+						"type":        "string",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"description": "The unique id of the role.",
+						"name":        "id",
+						"required":    false,
+						"type":        "integer",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"default":     100,
+						"description": "The number of roles to fetch. Default is 100",
+						"name":        "limit",
+						"required":    false,
+						"type":        "integer",
+					},
+					map[string]any{
+						"authSources": []any{},
+						"default":     0,
+						"description": "The number of roles to skip before fetching. Default 0",
+						"name":        "offset",
+						"required":    false,
+						"type":        "integer",
+					},
+				},
+			},
+		},
+	)
+
 	wantResult := "{\"connections\":[],\"label\":\"System Activity\",\"name\":\"system__activity\",\"project_name\":\"system__activity\"}"
 	tests.RunToolInvokeSimpleTest(t, "get_models", wantResult)
 
@@ -1266,6 +1433,20 @@ func TestLooker(t *testing.T) {
 
 	wantResult = "Admin"
 	tests.RunToolInvokeParametersTest(t, "search_permission_sets", []byte(`{"name": "Admin"}`), wantResult)
+
+	wantResult = "All"
+	tests.RunToolInvokeParametersTest(t, "search_model_sets", []byte(`{"name": "All"}`), wantResult)
+
+	wantResult = "genai-toolbox-test-set"
+	tests.RunToolInvokeParametersTest(t, "create_model_set", []byte(`{"name": "genai-toolbox-test-set", "models": ["system__activity"]}`), wantResult)
+	tests.RunToolInvokeParametersTest(t, "create_permission_set", []byte(`{"name": "foo", "permissions": ["bar"]}`), "foo")
+	tests.RunToolInvokeParametersTest(t, "create_role", []byte(`{"name": "test_role", "permission_set_id": "1", "model_set_id": "1"}`), "test_role")
+
+	wantResult = "Admin"
+	tests.RunToolInvokeParametersTest(t, "search_roles", []byte(`{"name": "Admin"}`), wantResult)
+
+	wantResult = "access_data"
+	tests.RunToolInvokeSimpleTest(t, "get_all_permissions", wantResult)
 
 	wantResult = "/login/embed?t=" // testing for specific substring, since url is dynamic
 	tests.RunToolInvokeParametersTest(t, "generate_embed_url", []byte(`{"type": "dashboards", "id": "1"}`), wantResult)

@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lookersearchpermissionsets
+package lookercreatemodelset
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	kind = "looker-search-permission-sets"
+	kind = "looker-create-model-set"
 )
 
 func init() {
@@ -74,17 +74,13 @@ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error)
 		return nil, fmt.Errorf("invalid source for %q tool: source kind must be `looker`", kind)
 	}
 
-	params := parameters.Parameters{
-		parameters.NewStringParameterWithRequired("name", "The name of the permission set.", false),
-		parameters.NewIntParameterWithRequired("id", "The unique id of the permission set.", false),
-		parameters.NewStringParameterWithRequired("permission", "Filter the permission sets by permission.", false),
-		parameters.NewIntParameterWithDefault("limit", 100, "The number of permission sets to fetch. Default is 100"),
-		parameters.NewIntParameterWithDefault("offset", 0, "The number of permission sets to skip before fetching. Default 0"),
-	}
+	params := parameters.Parameters{}
+	params = append(params, parameters.NewStringParameterWithRequired("name", "The name of the model set.", true))
+	params = append(params, parameters.NewArrayParameterWithRequired("models", "List of model names.", false, parameters.NewStringParameter("model", "Model name")))
 
 	annotations := cfg.Annotations
 	if annotations == nil {
-		readOnlyHint := true
+		readOnlyHint := false
 		annotations = &tools.ToolAnnotations{
 			ReadOnlyHint: &readOnlyHint,
 		}
@@ -130,90 +126,53 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 		return nil, fmt.Errorf("unable to get logger from ctx: %s", err)
 	}
 
-	paramsMap := params.AsMap()
-
-	var namePtr *string
-	if name, ok := paramsMap["name"].(string); ok && name != "" {
-		namePtr = &name
-	}
-
-	var idPtr *string
-	if id, ok := paramsMap["id"].(int); ok {
-		idStr := fmt.Sprintf("%d", id)
-		idPtr = &idStr
-	}
-
-	var limitPtr *int64
-	if limit, ok := paramsMap["limit"].(int); ok {
-		limit64 := int64(limit)
-		limitPtr = &limit64
-	}
-
-	var offsetPtr *int64
-	if offset, ok := paramsMap["offset"].(int); ok {
-		offset64 := int64(offset)
-		offsetPtr = &offset64
-	}
-
 	sdk, err := lookercommon.GetLookerSDK(t.UseClientOAuth, t.ApiSettings, t.Client, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("error getting sdk: %w", err)
 	}
 
-	var permissionPtr *string
-	if permission, ok := paramsMap["permission"].(string); ok && permission != "" {
-		permissionPtr = &permission
+	paramsMap := params.AsMap()
+	name := paramsMap["name"].(string)
+
+	var models []string
+	if m, ok := paramsMap["models"].([]any); ok {
+		for _, v := range m {
+			if s, ok := v.(string); ok {
+				models = append(models, s)
+			}
+		}
 	}
 
-	query := map[string]interface{}{
-		"fields": "id,name,permissions,all_access",
-	}
-	if namePtr != nil {
-		query["name"] = *namePtr
-	}
-	if idPtr != nil {
-		query["id"] = *idPtr
-	}
-	if permissionPtr != nil {
-		query["permission"] = *permissionPtr
-	}
-	if limitPtr != nil {
-		query["limit"] = *limitPtr
-	}
-	if offsetPtr != nil {
-		query["offset"] = *offsetPtr
+	logger.DebugContext(ctx, "creating model set", "name", name, "models", models)
+
+	req := v4.WriteModelSet{
+		Name:   &name,
+		Models: &models,
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("Custom SearchPermissionSets Query: %v", query))
-
-	var result []v4.PermissionSet
-	err = sdk.AuthSession.Do(&result, "GET", "/4.0", "/permission_sets/search", query, nil, t.ApiSettings)
+	resp, err := sdk.CreateModelSet(req, t.ApiSettings)
 	if err != nil {
-		return nil, fmt.Errorf("error calling custom search permission sets: %w", err)
+		return nil, fmt.Errorf("failed to create model set: %w", err)
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("SearchPermissionSets response: %v", result))
-
-	data := make([]any, 0)
-	for _, v := range result {
-		vMap := make(map[string]any)
-		if v.Id != nil {
-			vMap["id"] = *v.Id
-		}
-		if v.Name != nil {
-			vMap["name"] = *v.Name
-		}
-		if v.Permissions != nil {
-			vMap["permissions"] = *v.Permissions
-		}
-		if v.AllAccess != nil {
-			vMap["all_access"] = *v.AllAccess
-		}
-		logger.DebugContext(ctx, "Converted to %v\n", vMap)
-		data = append(data, vMap)
+	result := map[string]any{}
+	if resp.Id != nil {
+		id := *resp.Id
+		result["id"] = id
+		// ID is often int64 in SDK but let's check if we need to convert strings or keep as is.
+		// Usually ID in search_model_sets was int64 in struct but let's trust SDK.
+	}
+	if resp.Name != nil {
+		result["name"] = *resp.Name
+	}
+	if resp.Models != nil {
+		result["models"] = *resp.Models
+	}
+	if resp.AllAccess != nil {
+		result["all_access"] = *resp.AllAccess
 	}
 
-	return data, nil
+	return result, nil
 }
 
 func (t Tool) ParseParams(data map[string]any, claims map[string]map[string]any) (parameters.ParamValues, error) {

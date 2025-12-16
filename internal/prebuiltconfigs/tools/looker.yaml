@@ -672,6 +672,72 @@ tools:
           Output:
           A JSON object containing a link (`url`) to the newly created Look, along with its `id` and `slug`.
 
+    search_model_sets:
+        kind: looker-search-model-sets
+        source: looker-source
+        description: |
+          This tool searches for model sets in a Looker instance.
+          It allows filtering by name and id, model name and supports pagination.
+          Returns a list of model sets with their details including id, name, models, and all_access.
+
+    create_model_set:
+        kind: looker-create-model-set
+        source: looker-source
+        description: |
+          This tool creates a new model set in a Looker instance.
+          A model set defines a collection of LookML models that can be assigned to a permission set.
+
+          Required Parameters:
+          - name: The name of the new model set.
+          - models: A list of model names to include in the set.
+
+          Returns the newly created model set's details.
+
+    create_permission_set:
+        kind: looker-create-permission-set
+        source: looker-source
+        description: |
+          This tool creates a new permission set in a Looker instance.
+          Permission sets define what actions a user or group can perform.
+
+          Required Parameters:
+          - name: The name of the new permission set.
+          - permissions: A list of permission strings to include in the set (e.g., ["access_data", "see_looks"]).
+
+          Returns the newly created permission set's details.
+
+    create_role:
+        kind: looker-create-role
+        source: looker-source
+        description: |
+          This tool creates a new role in a Looker instance.
+          A role is a combination of a permission set and a model set.
+
+          Required Parameters:
+          - name: The name of the new role.
+          - permission_set_id: The ID of the associated permission set.
+          - model_set_id: The ID of the associated model set.
+
+          Returns the newly created role's details including id, name, permission_set, and model_set.
+
+    search_roles:
+        kind: looker-search-roles
+        source: looker-source
+        description: |
+          This tool searches for roles in a Looker instance.
+          It allows filtering by name, id , permissions set name and model set name and supports pagination.
+
+          Returns a list of roles with their details including id, name, permission_set name, permissions, model_set name, and models.
+
+    get_all_permissions:
+        kind: looker-get-all-permissions
+        source: looker-source
+        description: |
+          This tool retrieves all permissions in a Looker instance.
+          It accepts no parameters and returns a list of permissions with their details.
+
+          Returns a list of permissions, including the permission name, parent, and description.
+
     get_dashboards:
         kind: looker-get-dashboards
         source: looker-source
@@ -1053,6 +1119,7 @@ tools:
           Parameters:
           - name (optional): The name of the permission set.
           - id (optional): The unique id of the permission set.
+          - permission (optional): The permission string to filter the permision_sets by.
           - limit (optional): The number of results to return.
           - offset (optional): The number of results to skip before returning.
 
@@ -1097,3 +1164,9 @@ toolsets:
         - get_connection_tables
         - get_connection_table_columns
         - search_permission_sets
+        - search_model_sets
+        - search_roles
+        - create_model_set
+        - create_permission_set
+        - create_role
+        - get_all_permissions

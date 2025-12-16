@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lookersearchpermissionsets
+package lookersearchmodelsets
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	kind = "looker-search-permission-sets"
+	kind = "looker-search-model-sets"
 )
 
 func init() {
@@ -75,11 +75,11 @@ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error)
 	}
 
 	params := parameters.Parameters{
-		parameters.NewStringParameterWithRequired("name", "The name of the permission set.", false),
-		parameters.NewIntParameterWithRequired("id", "The unique id of the permission set.", false),
-		parameters.NewStringParameterWithRequired("permission", "Filter the permission sets by permission.", false),
-		parameters.NewIntParameterWithDefault("limit", 100, "The number of permission sets to fetch. Default is 100"),
-		parameters.NewIntParameterWithDefault("offset", 0, "The number of permission sets to skip before fetching. Default 0"),
+		parameters.NewStringParameterWithRequired("name", "The name of the model set.", false),
+		parameters.NewIntParameterWithRequired("id", "The unique id of the model set.", false),
+		parameters.NewStringParameterWithRequired("model", "A model name to filter model sets by.", false),
+		parameters.NewIntParameterWithDefault("limit", 100, "The number of model sets to fetch. Default is 100"),
+		parameters.NewIntParameterWithDefault("offset", 0, "The number of model sets to skip before fetching. Default 0"),
 	}
 
 	annotations := cfg.Annotations
@@ -160,13 +160,13 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 		return nil, fmt.Errorf("error getting sdk: %w", err)
 	}
 
-	var permissionPtr *string
-	if permission, ok := paramsMap["permission"].(string); ok && permission != "" {
-		permissionPtr = &permission
+	var modelsPtr *string
+	if model, ok := paramsMap["model"].(string); ok && model != "" {
+		modelsPtr = &model
 	}
 
 	query := map[string]interface{}{
-		"fields": "id,name,permissions,all_access",
+		"fields": "id,name,models,all_access",
 	}
 	if namePtr != nil {
 		query["name"] = *namePtr
@@ -174,8 +174,8 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 	if idPtr != nil {
 		query["id"] = *idPtr
 	}
-	if permissionPtr != nil {
-		query["permission"] = *permissionPtr
+	if modelsPtr != nil {
+		query["model"] = *modelsPtr // Add the custom parameter
 	}
 	if limitPtr != nil {
 		query["limit"] = *limitPtr
@@ -184,15 +184,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 		query["offset"] = *offsetPtr
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("Custom SearchPermissionSets Query: %v", query))
+	logger.DebugContext(ctx, fmt.Sprintf("Custom SearchModelSets Query: %v", query))
 
-	var result []v4.PermissionSet
-	err = sdk.AuthSession.Do(&result, "GET", "/4.0", "/permission_sets/search", query, nil, t.ApiSettings)
+	var result []v4.ModelSet
+	err = sdk.AuthSession.Do(&result, "GET", "/4.0", "/model_sets/search", query, nil, t.ApiSettings)
 	if err != nil {
-		return nil, fmt.Errorf("error calling custom search permission sets: %w", err)
+		return nil, fmt.Errorf("error calling custom search model sets: %w", err)
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("SearchPermissionSets response: %v", result))
+	logger.DebugContext(ctx, fmt.Sprintf("SearchModelSets response: %v", result))
 
 	data := make([]any, 0)
 	for _, v := range result {
@@ -203,8 +203,8 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 		if v.Name != nil {
 			vMap["name"] = *v.Name
 		}
-		if v.Permissions != nil {
-			vMap["permissions"] = *v.Permissions
+		if v.Models != nil {
+			vMap["models"] = *v.Models
 		}
 		if v.AllAccess != nil {
 			vMap["all_access"] = *v.AllAccess

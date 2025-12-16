@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lookersearchpermissionsets
+package lookercreaterole
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	kind = "looker-search-permission-sets"
+	kind = "looker-create-role"
 )
 
 func init() {
@@ -75,16 +75,14 @@ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error)
 	}
 
 	params := parameters.Parameters{
-		parameters.NewStringParameterWithRequired("name", "The name of the permission set.", false),
-		parameters.NewIntParameterWithRequired("id", "The unique id of the permission set.", false),
-		parameters.NewStringParameterWithRequired("permission", "Filter the permission sets by permission.", false),
-		parameters.NewIntParameterWithDefault("limit", 100, "The number of permission sets to fetch. Default is 100"),
-		parameters.NewIntParameterWithDefault("offset", 0, "The number of permission sets to skip before fetching. Default 0"),
+		parameters.NewStringParameterWithRequired("name", "The name of the new role.", true),
+		parameters.NewStringParameterWithRequired("permission_set_id", "The ID of the associated permission set.", true),
+		parameters.NewStringParameterWithRequired("model_set_id", "The ID of the associated model set.", true),
 	}
 
 	annotations := cfg.Annotations
 	if annotations == nil {
-		readOnlyHint := true
+		readOnlyHint := false
 		annotations = &tools.ToolAnnotations{
 			ReadOnlyHint: &readOnlyHint,
 		}
@@ -131,89 +129,66 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 	}
 
 	paramsMap := params.AsMap()
-
-	var namePtr *string
-	if name, ok := paramsMap["name"].(string); ok && name != "" {
-		namePtr = &name
+	name, ok := paramsMap["name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("name parameter missing or not a string")
+	}
+	permissionSetId, ok := paramsMap["permission_set_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("permission_set_id parameter missing or not a string")
+	}
+	modelSetId, ok := paramsMap["model_set_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("model_set_id parameter missing or not a string")
 	}
 
-	var idPtr *string
-	if id, ok := paramsMap["id"].(int); ok {
-		idStr := fmt.Sprintf("%d", id)
-		idPtr = &idStr
-	}
-
-	var limitPtr *int64
-	if limit, ok := paramsMap["limit"].(int); ok {
-		limit64 := int64(limit)
-		limitPtr = &limit64
-	}
-
-	var offsetPtr *int64
-	if offset, ok := paramsMap["offset"].(int); ok {
-		offset64 := int64(offset)
-		offsetPtr = &offset64
-	}
+	logger.DebugContext(ctx, "creating role", "name", name, "permission_set_id", permissionSetId, "model_set_id", modelSetId)
 
 	sdk, err := lookercommon.GetLookerSDK(t.UseClientOAuth, t.ApiSettings, t.Client, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("error getting sdk: %w", err)
 	}
 
-	var permissionPtr *string
-	if permission, ok := paramsMap["permission"].(string); ok && permission != "" {
-		permissionPtr = &permission
+	req := v4.WriteRole{
+		Name:            &name,
+		PermissionSetId: &permissionSetId,
+		ModelSetId:      &modelSetId,
 	}
 
-	query := map[string]interface{}{
-		"fields": "id,name,permissions,all_access",
-	}
-	if namePtr != nil {
-		query["name"] = *namePtr
-	}
-	if idPtr != nil {
-		query["id"] = *idPtr
-	}
-	if permissionPtr != nil {
-		query["permission"] = *permissionPtr
-	}
-	if limitPtr != nil {
-		query["limit"] = *limitPtr
-	}
-	if offsetPtr != nil {
-		query["offset"] = *offsetPtr
-	}
-
-	logger.DebugContext(ctx, fmt.Sprintf("Custom SearchPermissionSets Query: %v", query))
-
-	var result []v4.PermissionSet
-	err = sdk.AuthSession.Do(&result, "GET", "/4.0", "/permission_sets/search", query, nil, t.ApiSettings)
+	resp, err := sdk.CreateRole(req, t.ApiSettings)
 	if err != nil {
-		return nil, fmt.Errorf("error calling custom search permission sets: %w", err)
+		return nil, fmt.Errorf("error creating role: %w", err)
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("SearchPermissionSets response: %v", result))
-
-	data := make([]any, 0)
-	for _, v := range result {
-		vMap := make(map[string]any)
-		if v.Id != nil {
-			vMap["id"] = *v.Id
+	vMap := make(map[string]any)
+	if resp.Id != nil {
+		vMap["id"] = *resp.Id
+	}
+	if resp.Name != nil {
+		vMap["name"] = *resp.Name
+	}
+	if resp.PermissionSet != nil {
+		psMap := make(map[string]any)
+		if resp.PermissionSet.Id != nil {
+			psMap["id"] = *resp.PermissionSet.Id
 		}
-		if v.Name != nil {
-			vMap["name"] = *v.Name
+		if resp.PermissionSet.Permissions != nil {
+			psMap["permissions"] = *resp.PermissionSet.Permissions
 		}
-		if v.Permissions != nil {
-			vMap["permissions"] = *v.Permissions
+		vMap["permission_set"] = psMap
+	}
+	if resp.ModelSet != nil {
+		msMap := make(map[string]any)
+		if resp.ModelSet.Id != nil {
+			msMap["id"] = *resp.ModelSet.Id
 		}
-		if v.AllAccess != nil {
-			vMap["all_access"] = *v.AllAccess
+		if resp.ModelSet.Models != nil {
+			msMap["models"] = *resp.ModelSet.Models
 		}
-		logger.DebugContext(ctx, "Converted to %v\n", vMap)
-		data = append(data, vMap)
+		vMap["model_set"] = msMap
 	}
 
-	return data, nil
+	return vMap, nil
 }
 
 func (t Tool) ParseParams(data map[string]any, claims map[string]map[string]any) (parameters.ParamValues, error) {

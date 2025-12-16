@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lookersearchpermissionsets
+package lookergetallpermissions
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	kind = "looker-search-permission-sets"
+	kind = "looker-get-all-permissions"
 )
 
 func init() {
@@ -74,13 +74,7 @@ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error)
 		return nil, fmt.Errorf("invalid source for %q tool: source kind must be `looker`", kind)
 	}
 
-	params := parameters.Parameters{
-		parameters.NewStringParameterWithRequired("name", "The name of the permission set.", false),
-		parameters.NewIntParameterWithRequired("id", "The unique id of the permission set.", false),
-		parameters.NewStringParameterWithRequired("permission", "Filter the permission sets by permission.", false),
-		parameters.NewIntParameterWithDefault("limit", 100, "The number of permission sets to fetch. Default is 100"),
-		parameters.NewIntParameterWithDefault("offset", 0, "The number of permission sets to skip before fetching. Default 0"),
-	}
+	params := parameters.Parameters{}
 
 	annotations := cfg.Annotations
 	if annotations == nil {
@@ -130,90 +124,34 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
 		return nil, fmt.Errorf("unable to get logger from ctx: %s", err)
 	}
 
-	paramsMap := params.AsMap()
-
-	var namePtr *string
-	if name, ok := paramsMap["name"].(string); ok && name != "" {
-		namePtr = &name
-	}
-
-	var idPtr *string
-	if id, ok := paramsMap["id"].(int); ok {
-		idStr := fmt.Sprintf("%d", id)
-		idPtr = &idStr
-	}
-
-	var limitPtr *int64
-	if limit, ok := paramsMap["limit"].(int); ok {
-		limit64 := int64(limit)
-		limitPtr = &limit64
-	}
-
-	var offsetPtr *int64
-	if offset, ok := paramsMap["offset"].(int); ok {
-		offset64 := int64(offset)
-		offsetPtr = &offset64
-	}
-
 	sdk, err := lookercommon.GetLookerSDK(t.UseClientOAuth, t.ApiSettings, t.Client, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("error getting sdk: %w", err)
 	}
 
-	var permissionPtr *string
-	if permission, ok := paramsMap["permission"].(string); ok && permission != "" {
-		permissionPtr = &permission
-	}
+	logger.DebugContext(ctx, "searching all permissions")
 
-	query := map[string]interface{}{
-		"fields": "id,name,permissions,all_access",
-	}
-	if namePtr != nil {
-		query["name"] = *namePtr
-	}
-	if idPtr != nil {
-		query["id"] = *idPtr
-	}
-	if permissionPtr != nil {
-		query["permission"] = *permissionPtr
-	}
-	if limitPtr != nil {
-		query["limit"] = *limitPtr
-	}
-	if offsetPtr != nil {
-		query["offset"] = *offsetPtr
-	}
-
-	logger.DebugContext(ctx, fmt.Sprintf("Custom SearchPermissionSets Query: %v", query))
-
-	var result []v4.PermissionSet
-	err = sdk.AuthSession.Do(&result, "GET", "/4.0", "/permission_sets/search", query, nil, t.ApiSettings)
+	resp, err := sdk.AllPermissions(nil)
 	if err != nil {
-		return nil, fmt.Errorf("error calling custom search permission sets: %w", err)
+		return nil, fmt.Errorf("failed to get all permissions: %w", err)
 	}
 
-	logger.DebugContext(ctx, fmt.Sprintf("SearchPermissionSets response: %v", result))
-
-	data := make([]any, 0)
-	for _, v := range result {
+	var results []map[string]any
+	for _, p := range resp {
 		vMap := make(map[string]any)
-		if v.Id != nil {
-			vMap["id"] = *v.Id
+		if p.Permission != nil {
+			vMap["permission"] = *p.Permission
 		}
-		if v.Name != nil {
-			vMap["name"] = *v.Name
+		if p.Parent != nil {
+			vMap["parent"] = *p.Parent
 		}
-		if v.Permissions != nil {
-			vMap["permissions"] = *v.Permissions
+		if p.Description != nil {
+			vMap["description"] = *p.Description
 		}
-		if v.AllAccess != nil {
-			vMap["all_access"] = *v.AllAccess
-		}
-		logger.DebugContext(ctx, "Converted to %v\n", vMap)
-		data = append(data, vMap)
+		results = append(results, vMap)
 	}
 
-	return data, nil
+	return results, nil
 }
 
 func (t Tool) ParseParams(data map[string]any, claims map[string]map[string]any) (parameters.ParamValues, error) {

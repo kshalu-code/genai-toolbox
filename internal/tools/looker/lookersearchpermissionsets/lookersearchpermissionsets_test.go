@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/genai-toolbox/internal/server"
 	"github.com/googleapis/genai-toolbox/internal/testutils"
-	lkr "github.com/googleapis/genai-toolbox/internal/tools/looker/lookersearchpermissionsets.go"
+	lkr "github.com/googleapis/genai-toolbox/internal/tools/looker/lookersearchpermissionsets"
 )
 
 func TestParseFromYamlLookerSearchPermissionSets(t *testing.T) {

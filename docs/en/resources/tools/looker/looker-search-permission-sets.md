@@ -40,7 +40,7 @@ tools:
           - offset (optional): The number of results to skip before returning.
           Output:
           A JSON array of objects, where each object represents a permission set and contains details
-          such as `id`, `name`, `permissions` (list of permission strings), `all_access` (boolean), and `built_in` (boolean).
+          such as `id`, `name`, `permissions` (list of permission strings), and `all_access` (boolean).
 ```
 ## Reference
 | **field**   | **type** | **required** | **description**                                    |

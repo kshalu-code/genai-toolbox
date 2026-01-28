@@ -484,7 +484,7 @@ See [Usage Examples](../reference/cli.md#examples).
     *   A Looker account with permissions to access the desired models,
         explores, and data is required.
 *   **Tools:**
-    *   `search_permission_sets`: Retrieves the list of permission sets.
+    *   `search_permission_sets`: Searches for permission sets in the Looker instance. Permission sets define what actions a user or group can perform.
 
 ## Microsoft SQL Server
 
